@@ -73,8 +73,11 @@ export class NativeAdapter implements GlassAdapter {
    *  child so drawElementImage can render it. */
   private sourceCanvas: HTMLCanvasElement | null = null
 
-  /** Child div inside source canvas that replicates the page background */
-  private bgChild: HTMLDivElement | null = null
+  /** Child element inside source canvas that replicates the page background.
+   *  Uses <img crossorigin="anonymous"> instead of CSS background-image to
+   *  avoid canvas tainting (CSS background images cannot set CORS, causing
+   *  drawElementImage to taint the canvas → black WebGL texture). */
+  private bgChild: HTMLImageElement | null = null
   private backgroundEl: HTMLElement | null = null
 
   /** WebGL overlay canvas — the glass output visible on the card */
@@ -131,7 +134,7 @@ export class NativeAdapter implements GlassAdapter {
     document.body.appendChild(this.sourceCanvas)
 
     /* --- Background child div (direct child of sourceCanvas) --- */
-    this.bgChild = document.createElement("div")
+    this.bgChild = document.createElement("img")
     this.syncBackgroundChild()
     this.sourceCanvas.appendChild(this.bgChild)
 
@@ -314,13 +317,17 @@ export class NativeAdapter implements GlassAdapter {
   }
 
   /**
-   * Sync the background child div so it replicates the page background.
+   * Sync the background child <img> so it replicates the page background.
+   *
+   * Uses <img crossorigin="anonymous"> instead of CSS background-image:
+   *   - CSS background images cannot set CORS → drawElementImage taints
+   *     the canvas → WebGL texImage2D produces a black texture.
+   *   - <img crossorigin="anonymous"> loads with CORS → no taint.
    *
    * bgChild is sized to match the background element (NOT the card).
-   * NO transform offset is applied — per the HTML-in-Canvas spec, CSS
-   * transforms on layoutsubtree children are IGNORED by drawElementImage.
-   * Instead, drawElementImage's source-rect overload is used to crop the
-   * card's region from bgChild at draw time (see onSourcePaint).
+   * NO transform offset — per spec, CSS transforms on layoutsubtree
+   * children are IGNORED by drawElementImage. drawElementImage's
+   * source-rect overload crops the card's region at draw time.
    */
   private syncBackgroundChild(): void {
     if (!this.bgChild || !this.target) return
@@ -329,18 +336,32 @@ export class NativeAdapter implements GlassAdapter {
     const bgStyle = getComputedStyle(bgEl)
     const bgRect = bgEl.getBoundingClientRect()
 
+    /* Extract the URL from CSS background-image (e.g. url("https://...")) */
+    const bgImage = bgStyle.backgroundImage
+    const urlMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/)
+    const bgUrl = urlMatch ? urlMatch[1] : ""
+
+    /* Configure the <img> element */
+    this.bgChild.crossOrigin = "anonymous"
+    if (bgUrl && this.bgChild.src !== bgUrl) {
+      this.bgChild.src = bgUrl
+    }
     this.bgChild.style.cssText = [
       "position:absolute",
       `width:${bgRect.width}px`,
       `height:${bgRect.height}px`,
-      `background-image:${bgStyle.backgroundImage}`,
-      `background-size:${bgStyle.backgroundSize}`,
-      `background-position:${bgStyle.backgroundPosition}`,
-      `background-repeat:${bgStyle.backgroundRepeat}`,
-      `background-color:${bgStyle.backgroundColor}`,
+      `object-fit:${bgStyle.backgroundSize === "cover" ? "cover" : "contain"}`,
+      `object-position:${bgStyle.backgroundPosition}`,
       "top:0",
       "left:0",
     ].join(";")
+
+    /* If no background image URL (e.g. solid color), fall back to a div */
+    if (!bgUrl) {
+      this.log?.log(
+        "syncBackgroundChild: no background-image URL found, falling back to CSS background-color",
+      )
+    }
   }
 
   /**
