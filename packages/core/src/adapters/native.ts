@@ -69,15 +69,15 @@ export class NativeAdapter implements GlassAdapter {
   private options!: GlassOptions
   private log!: ReturnType<typeof createLogger>
 
-  /** Child div inside overlay canvas that replicates the page background.
-   *  Direct child of overlayCanvas so texElementImage2D can read it. */
+  /** Source canvas with layoutsubtree — 2D context, hosts bgChild as direct
+   *  child so drawElementImage can render it. */
+  private sourceCanvas: HTMLCanvasElement | null = null
+
+  /** Child div inside source canvas that replicates the page background */
   private bgChild: HTMLDivElement | null = null
   private backgroundEl: HTMLElement | null = null
 
-  /** WebGL canvas — also has layoutsubtree so bgChild participates in layout.
-   *  Single-canvas architecture: WebGL context + layoutsubtree on the SAME
-   *  canvas, so texElementImage2D's "direct child of canvas" constraint is
-   *  satisfied and no fallback path is needed. */
+  /** WebGL overlay canvas — the glass output visible on the card */
   private overlayCanvas: HTMLCanvasElement | null = null
   private gl: WebGLRenderingContext | null = null
   private program: WebGLProgram | null = null
@@ -119,17 +119,24 @@ export class NativeAdapter implements GlassAdapter {
 
     this.backgroundEl = this.resolveBackgroundTarget(options.backgroundTarget)
 
-    /* --- Single canvas: WebGL + layoutsubtree --- *
-     * overlayCanvas serves BOTH as the WebGL output surface AND as the
-     * layoutsubtree canvas whose direct child (bgChild) replicates the page
-     * background. This satisfies texElementImage2D's constraint that the
-     * element must be a direct child of the WebGL context's own canvas.
-     *
-     * layoutsubtree children do NOT auto-render onto the canvas — canvas
-     * pixels are controlled by the WebGL context. bgChild only participates
-     * in layout so texElementImage2D can sample its rendered bitmap. */
+    /* --- Source canvas (hidden, with layoutsubtree, 2D context) --- *
+     * Hosts bgChild as a direct child. drawElementImage renders bgChild onto
+     * the 2D context; that canvas is then uploaded as a WebGL texture.
+     * Off-screen positioning (not display:none, which disables layout). */
+    this.sourceCanvas = document.createElement("canvas")
+    this.sourceCanvas.setAttribute("layoutsubtree", "")
+    this.sourceCanvas.style.cssText =
+      "position:fixed;top:0;left:0;pointer-events:none;z-index:-1;overflow:hidden;left:-9999px"
+
+    document.body.appendChild(this.sourceCanvas)
+
+    /* --- Background child div (direct child of sourceCanvas) --- */
+    this.bgChild = document.createElement("div")
+    this.syncBackgroundChild()
+    this.sourceCanvas.appendChild(this.bgChild)
+
+    /* --- Overlay canvas (WebGL glass output) --- */
     this.overlayCanvas = document.createElement("canvas")
-    this.overlayCanvas.setAttribute("layoutsubtree", "")
     this.overlayCanvas.style.cssText = [
       "position:absolute",
       "inset:0",
@@ -144,11 +151,6 @@ export class NativeAdapter implements GlassAdapter {
     }
     target.appendChild(this.overlayCanvas)
 
-    /* --- Background child div (direct child of overlayCanvas) --- */
-    this.bgChild = document.createElement("div")
-    this.syncBackgroundChild()
-    this.overlayCanvas.appendChild(this.bgChild)
-
     this.gl = this.overlayCanvas.getContext("webgl", {
       alpha: true,
       premultipliedAlpha: false,
@@ -158,9 +160,7 @@ export class NativeAdapter implements GlassAdapter {
       throw new Error("WebGL is not available")
     }
 
-    this.log.log(
-      `texElementImage2D available: ${hasTexElementImage2D(this.gl)}`,
-    )
+    this.log.log(`HTML-in-Canvas API ready (dual-canvas: sourceCanvas 2D + overlayCanvas WebGL)`)
 
     const plugin = registry.get(options.effect)
     if (!plugin) {
@@ -185,7 +185,7 @@ export class NativeAdapter implements GlassAdapter {
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE)
 
     /* --- onpaint callback: upload texture from child element --- */
-    ;(this.overlayCanvas as any).onpaint = () => this.onSourcePaint()
+    ;(this.sourceCanvas as any).onpaint = () => this.onSourcePaint()
 
     /* --- Trigger first paint --- */
     this.requestRepaint()
@@ -265,12 +265,16 @@ export class NativeAdapter implements GlassAdapter {
     if (this.overlayCanvas?.parentNode) {
       this.overlayCanvas.parentNode.removeChild(this.overlayCanvas)
     }
+    if (this.sourceCanvas?.parentNode) {
+      this.sourceCanvas.parentNode.removeChild(this.sourceCanvas)
+    }
 
     this.program = null
     this.texture = null
     this.vertexBuffer = null
     this.uvBuffer = null
     this.overlayCanvas = null
+    this.sourceCanvas = null
     this.bgChild = null
     this.backgroundEl = null
     this.gl = null
@@ -344,60 +348,75 @@ export class NativeAdapter implements GlassAdapter {
   }
 
   private syncSize(): void {
-    if (!this.target || !this.overlayCanvas) return
+    if (!this.target || !this.overlayCanvas || !this.sourceCanvas) return
 
     const rect = this.target.getBoundingClientRect()
     const w = Math.max(1, Math.round(rect.width))
     const h = Math.max(1, Math.round(rect.height))
 
-    /* Single canvas: CSS pixels (no DPR multiplier).
-     * layoutsubtree uses canvas.width/height as the layout viewport, and
-     * bgChild's CSS px dimensions must match this viewport 1:1. Using DPR
-     * would make the layout viewport 2x the CSS size, breaking bgChild's
-     * positioning. Slightly lower WebGL resolution is an acceptable
-     * tradeoff for correct texture sampling. */
-    this.overlayCanvas.width = w
-    this.overlayCanvas.height = h
+    /* Source canvas: CSS pixels (layoutsubtree layout viewport matches
+     * bgChild's CSS px dimensions 1:1). */
+    this.sourceCanvas.width = w
+    this.sourceCanvas.height = h
+    this.sourceCanvas.style.width = `${w}px`
+    this.sourceCanvas.style.height = `${h}px`
+
+    /* Overlay canvas: device pixels for crisp WebGL rendering */
+    const dpr = window.devicePixelRatio || 1
+    this.overlayCanvas.width = Math.max(1, Math.round(rect.width * dpr))
+    this.overlayCanvas.height = Math.max(1, Math.round(rect.height * dpr))
   }
 
   /**
-   * onpaint callback — fires when canvas children render.
-   * Upload the bgChild element as a WebGL texture via texElementImage2D.
+   * onpaint callback — fires when sourceCanvas children render.
+   * Render bgChild onto sourceCanvas's 2D context via drawElementImage,
+   * then upload sourceCanvas as a WebGL texture.
    *
-   * In the single-canvas architecture, bgChild is a direct child of
-   * overlayCanvas (the WebGL canvas), so texElementImage2D's constraint
-   * is satisfied and no fallback is needed.
+   * Dual-canvas architecture:
+   *  - sourceCanvas (layoutsubtree, 2D context): hosts bgChild as direct
+   *    child; drawElementImage renders it onto the 2D bitmap.
+   *  - overlayCanvas (WebGL context): receives the 2D bitmap as a texture
+   *    via texImage2D, then runs the glass shader.
+   * This split avoids the "direct child of WebGL canvas" constraint that
+   * texElementImage2D imposes, and uses the more reliable drawElementImage
+   * + texImage2D pipeline.
    */
   private onSourcePaint(): void {
-    if (!this.gl || !this.texture || !this.bgChild || !this.overlayCanvas) {
-      this.log?.log("onSourcePaint skipped: missing gl/texture/bgChild/overlayCanvas")
+    if (!this.gl || !this.texture || !this.bgChild || !this.sourceCanvas) {
+      this.log?.log("onSourcePaint skipped: missing gl/texture/bgChild/sourceCanvas")
       return
     }
 
+    const ctx2d = this.sourceCanvas.getContext("2d")
+    if (!ctx2d || !hasDrawElementImage(ctx2d)) {
+      this.log?.log("onSourcePaint: 2D context or drawElementImage unavailable")
+      return
+    }
+
+    const w = this.sourceCanvas.width
+    const h = this.sourceCanvas.height
+    ctx2d.clearRect(0, 0, w, h)
+    ;(ctx2d as any).drawElementImage(this.bgChild, 0, 0, w, h)
+
+    /* Upload the 2D bitmap as a WebGL texture */
     const gl = this.gl
     gl.bindTexture(gl.TEXTURE_2D, this.texture)
-    ;(gl as any).texElementImage2D(
-      gl.TEXTURE_2D,
-      0,
-      gl.RGBA,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      this.bgChild,
-    )
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.sourceCanvas)
     this.textureReady = true
     if (!this._loggedFirstPaint) {
       this._loggedFirstPaint = true
-      this.log.log("first texture upload via texElementImage2D OK")
+      this.log.log("first texture upload via drawElementImage + texImage2D OK")
     }
   }
 
   private requestRepaint(): void {
-    if (!this.overlayCanvas) return
-    if (hasRequestPaint(this.overlayCanvas)) {
-      ;(this.overlayCanvas as any).requestPaint()
-    } else if ((this.overlayCanvas as any).onpaint) {
+    if (!this.sourceCanvas) return
+    if (hasRequestPaint(this.sourceCanvas)) {
+      ;(this.sourceCanvas as any).requestPaint()
+    } else if ((this.sourceCanvas as any).onpaint) {
       /* Fallback: call onpaint directly (no native paint scheduling) */
-      ;(this.overlayCanvas as any).onpaint()
+      ;(this.sourceCanvas as any).onpaint()
     } else {
       this.log?.log("requestRepaint: no requestPaint and no onpaint bound")
     }

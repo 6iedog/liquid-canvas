@@ -1,6 +1,6 @@
 {
   "name": "@liquid-canvas/core",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "iOS Liquid Glass effects for the web — framework-agnostic, plugin-based, three-tier fallback",
   "type": "module",
   "main": "./dist/index.cjs",
