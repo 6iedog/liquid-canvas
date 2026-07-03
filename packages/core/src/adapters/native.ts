@@ -386,23 +386,42 @@ export class NativeAdapter implements GlassAdapter {
     const gl = this.gl
 
     if (this.useTexElementImage2D) {
-      /* Preferred: directly upload element as WebGL texture */
-      gl.bindTexture(gl.TEXTURE_2D, this.texture)
-      ;(gl as any).texElementImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        this.bgChild,
-      )
-      this.textureReady = true
-      if (!this._loggedFirstPaint) {
-        this._loggedFirstPaint = true
-        this.log.log("first texture upload via texElementImage2D OK")
+      /* Preferred: directly upload element as WebGL texture.
+       * NOTE: texElementImage2D requires the element to be a direct child of
+       * the WebGL context's own canvas. Our bgChild lives in sourceCanvas
+       * (layoutsubtree canvas), while `gl` belongs to overlayCanvas — so this
+       * call may throw in strict implementations. On failure, permanently
+       * fall back to the drawElementImage + texImage2D path below. */
+      try {
+        gl.bindTexture(gl.TEXTURE_2D, this.texture)
+        ;(gl as any).texElementImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          this.bgChild,
+        )
+        this.textureReady = true
+        if (!this._loggedFirstPaint) {
+          this._loggedFirstPaint = true
+          this.log.log("first texture upload via texElementImage2D OK")
+        }
+        return
+      } catch (err) {
+        this.log?.log(
+          `texElementImage2D failed (${err instanceof Error ? err.message : String(err)}), ` +
+            `permanently falling back to drawElementImage + texImage2D`,
+        )
+        this.useTexElementImage2D = false
+        /* fall through to fallback path */
       }
-    } else {
-      /* Fallback: draw to 2D context, then texImage2D */
+    }
+
+    /* Fallback: draw bgChild to sourceCanvas's 2D context, then upload as texture.
+     * drawElementImage accepts any child of the layoutsubtree canvas, so this
+     * path is compatible with the sourceCanvas/overlayCanvas split. */
+    {
       const ctx2d = this.sourceCanvas?.getContext("2d")
       if (!ctx2d || !this.sourceCanvas) {
         this.log?.log("onSourcePaint fallback: no 2d context")

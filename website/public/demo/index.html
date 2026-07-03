@@ -174,6 +174,30 @@
     .test-grid { grid-template-columns: 1fr; }
     .control-grid { grid-template-columns: 1fr; }
   }
+
+  /* Scroll test area: extra page height so users can scroll and verify
+     glass cards re-crop correctly during scroll. */
+  .scroll-test {
+    margin-top: 32px;
+    padding: 24px;
+    border: 1px dashed rgba(255,255,255,0.15);
+    border-radius: 14px;
+    text-align: center;
+  }
+  .scroll-test h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 8px;
+  }
+  .scroll-test p {
+    font-size: 12px;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.6;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .scroll-spacer { height: 320px; }
 </style>
 </head>
 <body>
@@ -244,12 +268,22 @@
 
 <div class="adapter-info" id="adapter-info">🔄 initializing...</div>
 
+<!-- Scroll test area: gives the page enough height to scroll so you can
+     verify html2canvas adapter re-crops correctly on scroll. -->
+<div class="scroll-test">
+  <h2>↓ Scroll to test glass re-cropping ↓</h2>
+  <p>The cards above should keep showing the correct background region as you scroll. html2canvas adapters re-crop from the cached snapshot on scroll; native adapters re-paint via HTML-in-Canvas.</p>
+  <div class="scroll-spacer"></div>
+  <h2>↑ Scroll back up ↑</h2>
+  <p>If the cards turn black or show stale content after scrolling, the adapter's scroll handler is not invalidating the crop correctly.</p>
+</div>
+
 </div>
 
 <script type="importmap">
 {
   "imports": {
-    "@liquid-canvas/core": "https://esm.sh/@liquid-canvas/core@1.0.0"
+    "@liquid-canvas/core": "https://esm.sh/@liquid-canvas/core@1.0.1"
   }
 }
 </script>
