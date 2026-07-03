@@ -314,12 +314,13 @@ export class NativeAdapter implements GlassAdapter {
   }
 
   /**
-   * Sync the background child div so it replicates the page background
-   * and is positioned to show the card's region.
+   * Sync the background child div so it replicates the page background.
    *
-   * The child div is sized to match the background element, with a
-   * transform offset so the card's portion of the background is visible
-   * inside the source canvas.
+   * bgChild is sized to match the background element (NOT the card).
+   * NO transform offset is applied — per the HTML-in-Canvas spec, CSS
+   * transforms on layoutsubtree children are IGNORED by drawElementImage.
+   * Instead, drawElementImage's source-rect overload is used to crop the
+   * card's region from bgChild at draw time (see onSourcePaint).
    */
   private syncBackgroundChild(): void {
     if (!this.bgChild || !this.target) return
@@ -327,10 +328,6 @@ export class NativeAdapter implements GlassAdapter {
     const bgEl = this.backgroundEl ?? document.body
     const bgStyle = getComputedStyle(bgEl)
     const bgRect = bgEl.getBoundingClientRect()
-    const targetRect = this.target.getBoundingClientRect()
-
-    const offsetX = targetRect.left - bgRect.left
-    const offsetY = targetRect.top - bgRect.top
 
     this.bgChild.style.cssText = [
       "position:absolute",
@@ -341,10 +338,25 @@ export class NativeAdapter implements GlassAdapter {
       `background-position:${bgStyle.backgroundPosition}`,
       `background-repeat:${bgStyle.backgroundRepeat}`,
       `background-color:${bgStyle.backgroundColor}`,
-      `transform:translate(${-offsetX}px, ${-offsetY}px)`,
       "top:0",
       "left:0",
     ].join(";")
+  }
+
+  /**
+   * Compute the source rectangle (in bgChild's coordinate space) that
+   * corresponds to the card's current position over the background.
+   */
+  private getBgSourceRect(): { sx: number; sy: number; sw: number; sh: number } {
+    const bgEl = this.backgroundEl ?? document.body
+    const bgRect = bgEl.getBoundingClientRect()
+    const targetRect = this.target?.getBoundingClientRect() ?? bgRect
+    return {
+      sx: Math.max(0, Math.round(targetRect.left - bgRect.left)),
+      sy: Math.max(0, Math.round(targetRect.top - bgRect.top)),
+      sw: Math.max(1, Math.round(targetRect.width)),
+      sh: Math.max(1, Math.round(targetRect.height)),
+    }
   }
 
   private syncSize(): void {
@@ -396,7 +408,15 @@ export class NativeAdapter implements GlassAdapter {
     const w = this.sourceCanvas.width
     const h = this.sourceCanvas.height
     ctx2d.clearRect(0, 0, w, h)
-    ;(ctx2d as any).drawElementImage(this.bgChild, 0, 0, w, h)
+
+    /* Use the source-rect overload to crop the card's region from bgChild.
+     * Per spec, CSS transforms on layoutsubtree children are ignored by
+     * drawElementImage, so we cannot rely on transform:translate to offset
+     * bgChild. Instead, pass the card's offset within the background as
+     * the source rectangle (sx, sy, sw, sh) and map it to the full canvas
+     * (0, 0, w, h). */
+    const { sx, sy, sw, sh } = this.getBgSourceRect()
+    ;(ctx2d as any).drawElementImage(this.bgChild, sx, sy, sw, sh, 0, 0, w, h)
 
     /* Upload the 2D bitmap as a WebGL texture */
     const gl = this.gl
