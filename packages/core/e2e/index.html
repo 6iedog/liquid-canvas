@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liquid Canvas Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: system-ui, sans-serif;
+  }
+  .glass-panel {
+    width: 400px;
+    padding: 40px;
+    color: #fff;
+    text-align: center;
+  }
+  .glass-panel h1 { font-size: 24px; margin-bottom: 12px; }
+  .glass-panel p { font-size: 14px; opacity: 0.9; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div id="glass" class="glass-panel">
+  <h1>Liquid Canvas</h1>
+  <p>A progressive enhancement library for iOS-style liquid glass effects on the web.</p>
+</div>
+<script type="importmap">
+{
+  "imports": {
+    "@liquid-canvas/core": "../../dist/index.js"
+  }
+}
+</script>
+<script type="module">
+import { glass } from "@liquid-canvas/core"
+
+const target = document.getElementById("glass")
+glass(target, {
+  effect: "liquid-glass",
+  adapter: "css",
+  options: {
+    blur: 0.3,
+    refraction: 0.6,
+    cornerRadius: 24,
+    tintStrength: 0.1,
+    shadowOpacity: 0.3,
+  },
+})
+</script>
+</body>
+</html>

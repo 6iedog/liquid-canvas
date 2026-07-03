@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Liquid Canvas — Local Test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    color: #fff;
+    min-height: 100vh;
+    background: #0b0d12;
+  }
+
+  .page-bg {
+    position: fixed; inset: 0; z-index: 0;
+    background-size: cover; background-position: center;
+    background-image: url(https://picsum.photos/seed/mtn/1920/1080);
+  }
+  .page-bg::after {
+    content: ''; position: absolute; inset: 0;
+    background: rgba(0,0,0,0.15);
+  }
+
+  .wrapper {
+    position: relative; z-index: 1;
+    max-width: 1320px; margin: 0 auto;
+    padding: 32px 24px 60px;
+  }
+
+  header { text-align: center; margin-bottom: 28px; }
+  header h1 {
+    font-size: 32px; font-weight: 700;
+    background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 4px;
+  }
+  header p { font-size: 14px; color: rgba(255,255,255,0.6); }
+
+  .bg-picker { display: flex; gap: 8px; justify-content: center; margin-bottom: 24px; flex-wrap: wrap; }
+  .bg-picker button {
+    width: 48px; height: 32px; border-radius: 6px; border: 2px solid transparent;
+    background-size: cover; background-position: center; cursor: pointer;
+    transition: .2s;
+  }
+  .bg-picker button:hover { transform: scale(1.1); }
+  .bg-picker button.active { border-color: #818cf8; box-shadow: 0 0 12px rgba(129,140,248,0.4); }
+
+  .section-title {
+    margin: 28px 0 14px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.46);
+  }
+
+  .test-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .card {
+    position: relative;
+    border-radius: 20px;
+    padding: 28px 20px;
+    min-height: 220px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+  }
+  .card .content {
+    position: relative; z-index: 1;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+  }
+  .card .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+    padding: 3px 10px; border-radius: 100px; margin-bottom: 8px;
+    background: rgba(0,0,0,0.55);
+    text-transform: uppercase;
+  }
+  .card .badge .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+  }
+  .card .badge .dot.native { background: #34d399; }
+  .card .badge .dot.html2canvas { background: #fbbf24; }
+  .card .badge .dot.css { background: #f87171; }
+
+  .card h3 { font-size: 17px; font-weight: 600; margin-bottom: 2px; }
+  .card p { font-size: 12px; line-height: 1.6; opacity: 0.9; }
+  .card .fps,
+  .card .status {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    margin-top: 8px;
+  }
+  .card .fps { color: rgba(255,255,255,0.42); }
+  .card .status { color: rgba(255,255,255,0.56); }
+
+  .card .glass-marker {
+    position: absolute; bottom: 8px; right: 10px;
+    font-size: 9px; color: rgba(255,255,255,0.15);
+    letter-spacing: 0.02em;
+  }
+
+  .controls {
+    background: rgba(10, 12, 18, 0.85);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 24px;
+    margin-top: 20px;
+  }
+  .controls h3 {
+    font-size: 12px; margin-bottom: 16px;
+    color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .control-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 24px;
+  }
+  .control-group label {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: rgba(255,255,255,0.45);
+    margin-bottom: 2px;
+  }
+  .control-group label .val {
+    color: #818cf8; font-weight: 600;
+  }
+  .control-group input[type="range"] {
+    width: 100%; height: 4px;
+    -webkit-appearance: none; appearance: none;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px; outline: none;
+  }
+  .control-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: #818cf8; cursor: pointer;
+  }
+
+  .adapter-info {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    font-family: monospace;
+    white-space: pre-wrap;
+  }
+
+  @media (max-width: 980px) {
+    .test-grid { grid-template-columns: 1fr; }
+    .control-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-bg" id="page-bg"></div>
+
+<div class="wrapper">
+
+<header>
+  <h1>Liquid Canvas · Local Test</h1>
+  <p>3 adapters × 2 effects — compare capture quality, rendering style, and fallback behavior.</p>
+</header>
+
+<div class="bg-picker" id="bg-picker"></div>
+
+<div class="section-title">Liquid Glass</div>
+<div class="test-grid" id="grid-liquid"></div>
+
+<div class="section-title">Frosted Glass</div>
+<div class="test-grid" id="grid-frosted"></div>
+
+<div class="controls">
+  <h3>Parameters</h3>
+  <div class="control-grid">
+    <div class="control-group">
+      <label>Refraction（折射强度） <span class="val" id="val-refraction">0.40</span></label>
+      <input type="range" id="param-refraction" min="0" max="1" step="0.01" value="0.4" />
+    </div>
+    <div class="control-group">
+      <label>Blur（模糊） <span class="val" id="val-blur">0.50</span></label>
+      <input type="range" id="param-blur" min="0" max="1" step="0.01" value="0.5" />
+    </div>
+    <div class="control-group">
+      <label>Chromatic Aberration（色散） <span class="val" id="val-chromatic">0.020</span></label>
+      <input type="range" id="param-chromatic" min="0" max="0.15" step="0.001" value="0.02" />
+    </div>
+    <div class="control-group">
+      <label>Edge Highlight（边缘高光） <span class="val" id="val-edge">0.30</span></label>
+      <input type="range" id="param-edge" min="0" max="1" step="0.01" value="0.3" />
+    </div>
+    <div class="control-group">
+      <label>Specular（镜面反射） <span class="val" id="val-specular">0.15</span></label>
+      <input type="range" id="param-specular" min="0" max="1" step="0.01" value="0.15" />
+    </div>
+    <div class="control-group">
+      <label>Fresnel（菲涅尔） <span class="val" id="val-fresnel">1.00</span></label>
+      <input type="range" id="param-fresnel" min="0" max="2" step="0.01" value="1.0" />
+    </div>
+    <div class="control-group">
+      <label>Corner Radius（圆角） <span class="val" id="val-radius">24.00</span></label>
+      <input type="range" id="param-radius" min="0" max="48" step="1" value="24" />
+    </div>
+    <div class="control-group">
+      <label>Tint Strength（着色强度） <span class="val" id="val-tint">0.10</span></label>
+      <input type="range" id="param-tint" min="0" max="1" step="0.01" value="0.1" />
+    </div>
+    <div class="control-group">
+      <label>Shadow（阴影） <span class="val" id="val-shadow">0.30</span></label>
+      <input type="range" id="param-shadow" min="0" max="1" step="0.01" value="0.3" />
+    </div>
+  </div>
+</div>
+
+<div class="adapter-info" id="adapter-info">🔄 initializing...</div>
+
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "@liquid-canvas/core": "../packages/core/dist/index.js"
+  }
+}
+</script>
+<script type="module">
+import { glass } from "@liquid-canvas/core"
+
+const BACKGROUNDS = [
+  { label: "Mountains", url: "https://picsum.photos/seed/mtn/1920/1080" },
+  { label: "City", url: "https://picsum.photos/seed/cty/1920/1080" },
+  { label: "Forest", url: "https://picsum.photos/seed/frst/1920/1080" },
+  { label: "Ocean", url: "https://picsum.photos/seed/ocn/1920/1080" },
+  { label: "Night", url: "https://picsum.photos/seed/ngt/1920/1080" },
+  { label: "Autumn", url: "https://picsum.photos/seed/aut/1920/1080" },
+]
+
+const CASES = [
+  {
+    id: "native-liquid",
+    adapter: "native",
+    effect: "liquid-glass",
+    title: "Native × Liquid",
+    desc: "html-in-canvas capture with refraction and chromatic aberration.",
+    group: "liquid",
+  },
+  {
+    id: "html2canvas-liquid",
+    adapter: "html2canvas",
+    effect: "liquid-glass",
+    title: "HTML2Canvas × Liquid",
+    desc: "Screenshot capture cropped to card bounds, then shaded as liquid glass.",
+    group: "liquid",
+  },
+  {
+    id: "css-liquid",
+    adapter: "css",
+    effect: "liquid-glass",
+    title: "CSS × Liquid-like",
+    desc: "Liquid-like CSS fallback using blur, tint, highlights, and SVG distortion.",
+    group: "liquid",
+  },
+  {
+    id: "native-frosted",
+    adapter: "native",
+    effect: "frosted-glass",
+    title: "Native × Frosted",
+    desc: "html-in-canvas capture with local blur and soft tint.",
+    group: "frosted",
+  },
+  {
+    id: "html2canvas-frosted",
+    adapter: "html2canvas",
+    effect: "frosted-glass",
+    title: "HTML2Canvas × Frosted",
+    desc: "Screenshot capture cropped to the backdrop region, then frosted in shader.",
+    group: "frosted",
+  },
+  {
+    id: "css-frosted",
+    adapter: "css",
+    effect: "frosted-glass",
+    title: "CSS × Frosted",
+    desc: "Pure CSS frosted fallback with backdrop-filter and soft saturation.",
+    group: "frosted",
+  },
+]
+
+const pageBg = document.getElementById("page-bg")
+const picker = document.getElementById("bg-picker")
+const liquidGrid = document.getElementById("grid-liquid")
+const frostedGrid = document.getElementById("grid-frosted")
+const instances = new Map()
+let currentBg = 0
+
+function createCard(testCase) {
+  const card = document.createElement("div")
+  card.className = "card"
+  card.id = `card-${testCase.id}`
+  card.innerHTML = `
+    <div class="content">
+      <div class="badge"><span class="dot ${testCase.adapter}"></span><span id="badge-${testCase.id}">${testCase.adapter} · ${testCase.effect}</span></div>
+      <h3>${testCase.title}</h3>
+      <p>${testCase.desc}</p>
+      <div class="fps" id="fps-${testCase.id}">-- FPS</div>
+      <div class="status" id="status-${testCase.id}">initializing...</div>
+    </div>
+    <div class="glass-marker">⏺ glass</div>
+  `
+  return card
+}
+
+for (const testCase of CASES) {
+  const card = createCard(testCase)
+  if (testCase.group === "liquid") {
+    liquidGrid.appendChild(card)
+  } else {
+    frostedGrid.appendChild(card)
+  }
+}
+
+BACKGROUNDS.forEach((bg, i) => {
+  const btn = document.createElement("button")
+  btn.style.backgroundImage = `url(${bg.url})`
+  btn.title = bg.label
+  if (i === 0) btn.classList.add("active")
+  btn.addEventListener("click", () => {
+    if (i === currentBg) return
+    currentBg = i
+    pageBg.style.backgroundImage = `url(${bg.url})`
+    picker.querySelectorAll("button").forEach(b => b.classList.remove("active"))
+    btn.classList.add("active")
+    instances.forEach(({ instance }) => instance.markChanged())
+    updateStatusSummary()
+  })
+  picker.appendChild(btn)
+})
+
+const $ = id => document.getElementById(id)
+const inputs = {
+  refraction: $("param-refraction"),
+  blur: $("param-blur"),
+  chromatic: $("param-chromatic"),
+  edge: $("param-edge"),
+  specular: $("param-specular"),
+  fresnel: $("param-fresnel"),
+  radius: $("param-radius"),
+  tint: $("param-tint"),
+  shadow: $("param-shadow"),
+}
+const displays = {
+  refraction: $("val-refraction"),
+  blur: $("val-blur"),
+  chromatic: $("val-chromatic"),
+  edge: $("val-edge"),
+  specular: $("val-specular"),
+  fresnel: $("val-fresnel"),
+  radius: $("val-radius"),
+  tint: $("val-tint"),
+  shadow: $("val-shadow"),
+}
+
+function getOpts(overrides = {}) {
+  return {
+    refraction: +inputs.refraction.value,
+    blur: +inputs.blur.value,
+    chromaticAberration: +inputs.chromatic.value,
+    edgeHighlight: +inputs.edge.value,
+    specular: +inputs.specular.value,
+    fresnel: +inputs.fresnel.value,
+    cornerRadius: +inputs.radius.value,
+    tintStrength: +inputs.tint.value,
+    shadowOpacity: +inputs.shadow.value,
+    backgroundTarget: "#page-bg",
+    debug: true,
+    ...overrides,
+  }
+}
+
+function updateDisplay() {
+  for (const [key, el] of Object.entries(inputs)) {
+    const display = displays[key]
+    if (display) display.textContent = (+el.value).toFixed(el.step < 0.01 ? 3 : 2)
+  }
+}
+
+let rebuildTimer = null
+function rebuildDebounced() {
+  clearTimeout(rebuildTimer)
+  rebuildTimer = setTimeout(() => rebuildAll(), 250)
+}
+
+let paramTimer = null
+function updateParamsLive() {
+  clearTimeout(paramTimer)
+  paramTimer = setTimeout(() => {
+    const opts = getOpts()
+    for (const { instance } of instances.values()) {
+      try { instance.setOptions(opts) } catch {}
+    }
+  }, 60)
+}
+
+for (const el of Object.values(inputs)) {
+  el.addEventListener("input", updateDisplay)
+  el.addEventListener("input", () => updateParamsLive())
+}
+
+function setCaseStatus(testCase, text) {
+  const status = document.getElementById(`status-${testCase.id}`)
+  if (status) status.textContent = text
+}
+
+function setCaseBadge(testCase, adapterType) {
+  const badge = document.getElementById(`badge-${testCase.id}`)
+  const dot = badge?.previousElementSibling
+  if (dot) dot.className = `dot ${adapterType}`
+  if (badge) badge.textContent = `${testCase.adapter} → ${adapterType} · ${testCase.effect}`
+}
+
+async function rebuildAll() {
+  for (const { instance } of instances.values()) {
+    try { instance.dispose() } catch {}
+  }
+  instances.clear()
+  $("adapter-info").textContent = "🔄 rebuilding 6 cases..."
+
+  const base = getOpts()
+
+  /* Parallel init: all 6 cards start at once. html2canvas adapters share a
+   * module-level snapshot cache, so only ONE html2canvas call runs for all
+   * cards that share the same #page-bg background. */
+  for (const testCase of CASES) {
+    setCaseStatus(testCase, "initializing...")
+  }
+
+  const results = await Promise.allSettled(
+    CASES.map(async (testCase) => {
+      const instance = await glass(`#card-${testCase.id}`, {
+        ...base,
+        adapter: testCase.adapter,
+        effect: testCase.effect,
+      })
+      return { instance, testCase }
+    }),
+  )
+
+  CASES.forEach((testCase, i) => {
+    const result = results[i]
+    if (result.status === "fulfilled") {
+      const { instance } = result.value
+      instances.set(testCase.id, { instance, testCase })
+      setCaseBadge(testCase, instance.adapterType)
+      setCaseStatus(testCase, `ok · ${instance.adapterType} adapter active`)
+    } else {
+      const reason = result.reason
+      const message = reason instanceof Error ? reason.message : String(reason)
+      setCaseStatus(testCase, `error · ${message}`)
+      const badge = document.getElementById(`badge-${testCase.id}`)
+      if (badge) badge.textContent = `${testCase.adapter} · error`
+    }
+  })
+
+  updateStatusSummary()
+}
+
+function updateStatusSummary() {
+  const lines = CASES.map((testCase) => {
+    const record = instances.get(testCase.id)
+    const fps = record?.instance?.fps ?? 0
+    const status = document.getElementById(`status-${testCase.id}`)?.textContent ?? "missing"
+    return `${testCase.id.padEnd(20)} ${String(fps).padStart(3)} FPS   ${status}`
+  })
+  $("adapter-info").textContent = `📊 ${lines.join("\n")}`
+}
+
+setInterval(() => {
+  for (const [id, record] of instances.entries()) {
+    const fpsEl = document.getElementById(`fps-${id}`)
+    if (fpsEl) fpsEl.textContent = `${record.instance.fps} FPS`
+  }
+  updateStatusSummary()
+}, 1000)
+
+updateDisplay()
+rebuildAll()
+</script>
+</body>
+</html>

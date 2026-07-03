@@ -1,0 +1,25 @@
+{
+  "name": "liquid-canvas-monorepo",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm -w @liquid-canvas/core run build && npm -w @liquid-canvas/react run build && npm -w @liquid-canvas/vue run build",
+    "dev": "npm -w @liquid-canvas/core run dev",
+    "test": "npm -w @liquid-canvas/core run test",
+    "typecheck": "npm -w @liquid-canvas/core run typecheck && npm -w @liquid-canvas/react run typecheck && npm -w @liquid-canvas/vue run typecheck",
+    "lint": "npm -w @liquid-canvas/core run lint && npm -w @liquid-canvas/react run lint && npm -w @liquid-canvas/vue run lint",
+    "format": "npm -w @liquid-canvas/core run format && npm -w @liquid-canvas/react run format && npm -w @liquid-canvas/vue run format",
+    "test:serve": "node test/server.mjs",
+    "docs:dev": "vitepress dev website",
+    "docs:build": "vitepress build website",
+    "docs:preview": "vitepress preview website"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "typescript": "^5.7.0",
+    "vitepress": "^1.6.4"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "name": "@liquid-canvas/core",
+  "version": "1.0.0",
+  "description": "iOS Liquid Glass effects for the web — framework-agnostic, plugin-based, three-tier fallback",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./effects": {
+      "types": "./dist/effects/index.d.ts",
+      "import": "./dist/effects/index.js",
+      "require": "./dist/effects/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/6iedog/liquid-canvas.git"
+  },
+  "keywords": [
+    "liquid-glass",
+    "glassmorphism",
+    "webgl",
+    "canvas",
+    "html-in-canvas",
+    "visual-effect",
+    "progressive-enhancement"
+  ],
+  "author": "6iedog",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/6iedog/liquid-canvas/issues"
+  },
+  "homepage": "https://6iedog.github.io/liquid-canvas/",
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "bench": "vitest run bench/",
+    "e2e": "playwright test",
+    "e2e:update": "playwright test --update-snapshots",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src/",
+    "format": "biome format --write src/"
+  },
+  "peerDependencies": {
+    "html2canvas": "^1.4.1"
+  },
+  "peerDependenciesMeta": {
+    "html2canvas": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@asamuzakjp/css-color": "^6.0.4",
+    "@playwright/test": "^1.48.0",
+    "jsdom": "^27.0.1",
+    "serve": "^14.2.0",
+    "tsup": "^8.5.1",
+    "vitest": "^2.1.0"
+  }
+}
