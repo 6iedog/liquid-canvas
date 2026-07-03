@@ -399,7 +399,55 @@ export class HTML2CanvasAdapter implements GlassAdapter {
     this.captureCanvas.width = cw
     this.captureCanvas.height = ch
     ctx.clearRect(0, 0, cw, ch)
-    ctx.drawImage(this.snapshotCanvas, sx, sy, sw, sh, 0, 0, cw, ch)
+
+    /* Clamp source rectangle to snapshot bounds. When the background element
+     * is position:fixed (viewport-sized), cards extending beyond the viewport
+     * bottom would have sy+sh > snapshotCanvas.height, producing transparent
+     * pixels. Clamp the in-bounds portion, then fill the remainder by
+     * repeating the edge row/column (simulates CLAMP_TO_EDGE on CPU side). */
+    const snapW = this.snapshotCanvas.width
+    const snapH = this.snapshotCanvas.height
+    const actualSx = Math.min(sx, snapW - 1)
+    const actualSy = Math.min(sy, snapH - 1)
+    const actualSw = Math.max(1, Math.min(sw - (actualSx - sx), snapW - actualSx))
+    const actualSh = Math.max(1, Math.min(sh - (actualSy - sy), snapH - actualSy))
+
+    /* Draw the in-bounds portion */
+    ctx.drawImage(
+      this.snapshotCanvas,
+      actualSx, actualSy, actualSw, actualSh,
+      actualSx - sx, actualSy - sy, actualSw, actualSh,
+    )
+
+    /* Fill right edge if card extends beyond snapshot width */
+    if (actualSx + actualSw < cw) {
+      const edgeX = actualSx + actualSw - 1
+      const fillW = cw - (actualSx + actualSw)
+      ctx.drawImage(
+        this.snapshotCanvas,
+        edgeX, actualSy, 1, actualSh,
+        actualSx + actualSw, actualSy - sy, fillW, actualSh,
+      )
+    }
+    /* Fill bottom edge if card extends beyond snapshot height */
+    if (actualSy + actualSh < ch) {
+      const edgeY = actualSy + actualSh - 1
+      const fillH = ch - (actualSy + actualSh)
+      ctx.drawImage(
+        this.snapshotCanvas,
+        actualSx, edgeY, actualSw, 1,
+        actualSx - sx, actualSy + actualSh, actualSw, fillH,
+      )
+      /* Fill bottom-right corner */
+      if (actualSx + actualSw < cw) {
+        ctx.drawImage(
+          this.snapshotCanvas,
+          actualSx + actualSw - 1, edgeY, 1, 1,
+          actualSx + actualSw, actualSy + actualSh,
+          cw - (actualSx + actualSw), fillH,
+        )
+      }
+    }
 
     this.updateTexture(this.captureCanvas)
     this.needsCrop = false
