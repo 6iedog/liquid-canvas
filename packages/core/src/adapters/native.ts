@@ -122,12 +122,11 @@ export class NativeAdapter implements GlassAdapter {
 
     this.backgroundEl = this.resolveBackgroundTarget(options.backgroundTarget)
 
-    /* --- Source canvas (hidden, with layoutsubtree, 2D context) --- *
-     * Hosts bgChild as a direct child. drawElementImage renders bgChild onto
-     * the 2D context; that canvas is then uploaded as a WebGL texture.
-     * Off-screen positioning (not display:none, which disables layout). */
+    /* --- Source canvas (hidden, 2D context) --- *
+     * Standard off-screen canvas for drawing bgChild via drawImage.
+     * No layoutsubtree needed — we use standard Canvas 2D API, not
+     * drawElementImage. The canvas is uploaded as a WebGL texture. */
     this.sourceCanvas = document.createElement("canvas")
-    this.sourceCanvas.setAttribute("layoutsubtree", "")
     this.sourceCanvas.style.cssText =
       "position:fixed;top:0;left:0;pointer-events:none;z-index:-1;overflow:hidden;left:-9999px"
 
@@ -187,27 +186,19 @@ export class NativeAdapter implements GlassAdapter {
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE)
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE)
 
-    /* --- onpaint callback: upload texture from child element --- */
-    ;(this.sourceCanvas as any).onpaint = () => this.onSourcePaint()
-
-    /* --- Trigger first paint --- */
-    this.requestRepaint()
-
     /* --- Resize observer --- */
     this.resizeObserver = new ResizeObserver(() => {
       this.syncSize()
       this.syncBackgroundChild()
-      this.requestRepaint()
     })
     this.resizeObserver.observe(target)
     if (this.backgroundEl && this.backgroundEl !== target) {
       this.resizeObserver.observe(this.backgroundEl)
     }
 
-    /* --- Scroll listener: update background position on scroll --- */
+    /* --- Scroll listener: re-sync bgChild position on scroll --- */
     this.scrollHandler = () => {
       this.syncBackgroundChild()
-      this.requestRepaint()
     }
     window.addEventListener("scroll", this.scrollHandler, { passive: true })
 
@@ -225,12 +216,10 @@ export class NativeAdapter implements GlassAdapter {
       this.overlayCanvas.style.borderRadius = `${this.options.cornerRadius}px`
     }
     this.syncBackgroundChild()
-    this.requestRepaint()
   }
 
   markChanged(): void {
     this.syncBackgroundChild()
-    this.requestRepaint()
   }
 
   dispose(): void {
@@ -336,16 +325,35 @@ export class NativeAdapter implements GlassAdapter {
     const bgStyle = getComputedStyle(bgEl)
     const bgRect = bgEl.getBoundingClientRect()
 
-    /* Extract the URL from CSS background-image (e.g. url("https://...")) */
+    /* Extract the URL from CSS background-image (e.g. url("./images/mtn.jpg")
+     * or url("https://...")). Resolve relative URLs against the document
+     * base so img.src gets an absolute URL the browser can fetch. */
     const bgImage = bgStyle.backgroundImage
     const urlMatch = bgImage.match(/url\(["']?([^"')]+)["']?\)/)
-    const bgUrl = urlMatch ? urlMatch[1] : ""
+    const bgUrl = urlMatch ? new URL(urlMatch[1], document.baseURI).href : ""
 
-    /* Configure the <img> element */
-    this.bgChild.crossOrigin = "anonymous"
-    if (bgUrl && this.bgChild.src !== bgUrl) {
-      this.bgChild.src = bgUrl
+    /* For same-origin images, crossOrigin is not needed (and can cause
+     * failures if the server doesn't send CORS headers). Only set
+     * crossOrigin="anonymous" for cross-origin URLs. */
+    if (bgUrl) {
+      const isCrossOrigin = (() => {
+        try {
+          const u = new URL(bgUrl, document.baseURI)
+          return u.origin !== window.location.origin
+        } catch {
+          return false
+        }
+      })()
+      if (isCrossOrigin) {
+        this.bgChild.crossOrigin = "anonymous"
+      } else {
+        this.bgChild.removeAttribute("crossorigin")
+      }
+      if (this.bgChild.src !== bgUrl) {
+        this.bgChild.src = bgUrl
+      }
     }
+
     this.bgChild.style.cssText = [
       "position:absolute",
       `width:${bgRect.width}px`,
@@ -356,10 +364,9 @@ export class NativeAdapter implements GlassAdapter {
       "left:0",
     ].join(";")
 
-    /* If no background image URL (e.g. solid color), fall back to a div */
     if (!bgUrl) {
       this.log?.log(
-        "syncBackgroundChild: no background-image URL found, falling back to CSS background-color",
+        "syncBackgroundChild: no background-image URL found",
       )
     }
   }
@@ -401,28 +408,35 @@ export class NativeAdapter implements GlassAdapter {
   }
 
   /**
-   * onpaint callback — fires when sourceCanvas children render.
-   * Render bgChild onto sourceCanvas's 2D context via drawElementImage,
-   * then upload sourceCanvas as a WebGL texture.
+   * Render bgChild (an <img>) onto sourceCanvas using standard Canvas 2D
+   * drawImage, then upload as a WebGL texture via texImage2D.
    *
-   * Dual-canvas architecture:
-   *  - sourceCanvas (layoutsubtree, 2D context): hosts bgChild as direct
-   *    child; drawElementImage renders it onto the 2D bitmap.
-   *  - overlayCanvas (WebGL context): receives the 2D bitmap as a texture
-   *    via texImage2D, then runs the glass shader.
-   * This split avoids the "direct child of WebGL canvas" constraint that
-   * texElementImage2D imposes, and uses the more reliable drawElementImage
-   * + texImage2D pipeline.
+   * Uses standard Canvas 2D API (not drawElementImage) because:
+   *  - drawElementImage depends on layoutsubtree's snapshot timing, which
+   *    produced empty [0,0,0,0] pixels in practice.
+   *  - Standard drawImage is reliable once the <img> has loaded.
+   *  - For same-origin images (local files), no CORS concerns at all.
+   *
+   * The adapter still gates on isHtmlInCanvasAvailable() to preserve the
+   * "native" adapter's capability-based activation, but the actual rendering
+   * uses the more dependable standard 2D API.
    */
   private onSourcePaint(): void {
     if (!this.gl || !this.texture || !this.bgChild || !this.sourceCanvas) {
-      this.log?.log("onSourcePaint skipped: missing gl/texture/bgChild/sourceCanvas")
+      return
+    }
+
+    /* Wait for the <img> to load before attempting to draw it */
+    if (!this.bgChild.complete || this.bgChild.naturalWidth === 0) {
+      if (!this._loggedFirstPaint) {
+        this.log?.log("onSourcePaint: bgChild <img> not yet loaded, skipping")
+      }
       return
     }
 
     const ctx2d = this.sourceCanvas.getContext("2d")
-    if (!ctx2d || !hasDrawElementImage(ctx2d)) {
-      this.log?.log("onSourcePaint: 2D context or drawElementImage unavailable")
+    if (!ctx2d) {
+      this.log?.log("onSourcePaint: 2D context unavailable")
       return
     }
 
@@ -430,22 +444,16 @@ export class NativeAdapter implements GlassAdapter {
     const h = this.sourceCanvas.height
     ctx2d.clearRect(0, 0, w, h)
 
-    /* Use the source-rect overload to crop the card's region from bgChild.
-     * Per spec, CSS transforms on layoutsubtree children are ignored by
-     * drawElementImage, so we cannot rely on transform:translate to offset
-     * bgChild. Instead, pass the card's offset within the background as
-     * the source rectangle (sx, sy, sw, sh) and map it to the full canvas
-     * (0, 0, w, h). */
+    /* drawImage with source-rect overload: crop the card's region from
+     * bgChild (the full-size background image) and map it to the full
+     * sourceCanvas. Standard Canvas 2D API — no layoutsubtree needed. */
     const { sx, sy, sw, sh } = this.getBgSourceRect()
     try {
-      ;(ctx2d as any).drawElementImage(this.bgChild, sx, sy, sw, sh, 0, 0, w, h)
+      ctx2d.drawImage(this.bgChild, sx, sy, sw, sh, 0, 0, w, h)
     } catch (err) {
-      /* Spec: "Throws if called before any snapshot has been recorded."
-       * This can happen on the very first paint before layoutsubtree has
-       * captured bgChild. Skip this frame; requestRepaint will retry. */
       if (!this._loggedFirstPaint) {
         this.log?.log(
-          `drawElementImage threw (likely no snapshot yet): ${err instanceof Error ? err.message : String(err)}`,
+          `drawImage threw: ${err instanceof Error ? err.message : String(err)}`,
         )
       }
       return
@@ -456,7 +464,7 @@ export class NativeAdapter implements GlassAdapter {
       try {
         const px = ctx2d.getImageData(w >> 1, h >> 1, 1, 1).data
         this.log.log(
-          `sourceCanvas center pixel after drawElementImage: [${px[0]},${px[1]},${px[2]},${px[3]}]`,
+          `sourceCanvas center pixel after drawImage: [${px[0]},${px[1]},${px[2]},${px[3]}]`,
         )
       } catch {
         this.log?.log("could not read sourceCanvas pixel (tainted?)")
@@ -471,19 +479,7 @@ export class NativeAdapter implements GlassAdapter {
     this.textureReady = true
     if (!this._loggedFirstPaint) {
       this._loggedFirstPaint = true
-      this.log.log("first texture upload via drawElementImage + texImage2D OK")
-    }
-  }
-
-  private requestRepaint(): void {
-    if (!this.sourceCanvas) return
-    if (hasRequestPaint(this.sourceCanvas)) {
-      ;(this.sourceCanvas as any).requestPaint()
-    } else if ((this.sourceCanvas as any).onpaint) {
-      /* Fallback: call onpaint directly (no native paint scheduling) */
-      ;(this.sourceCanvas as any).onpaint()
-    } else {
-      this.log?.log("requestRepaint: no requestPaint and no onpaint bound")
+      this.log.log("first texture upload via drawImage + texImage2D OK")
     }
   }
 
@@ -501,8 +497,10 @@ export class NativeAdapter implements GlassAdapter {
       this.lastFpsTime = now
     }
 
-    /* Request a new paint each frame so onpaint fires and updates the texture */
-    this.requestRepaint()
+    /* Each frame: render bgChild onto sourceCanvas via drawImage and
+     * upload as a WebGL texture. Standard 2D API — no layoutsubtree/
+     * onpaint/requestPaint needed. */
+    this.onSourcePaint()
 
     this.draw((now - this.startTime) / 1000)
     this.rafId = requestAnimationFrame(this.renderLoop)
