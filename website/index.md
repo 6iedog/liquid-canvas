@@ -11,7 +11,7 @@ hero:
       link: /guide/getting-started
     - theme: alt
       text: Live Demo
-      link: /demo/
+      link: https://github.6iedog.com/liquid-canvas/demo/
     - theme: alt
       text: GitHub
       link: https://github.com/6iedog/liquid-canvas

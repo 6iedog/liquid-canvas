@@ -9,14 +9,37 @@
   --vp-c-brand-3: #818cf8;
   --vp-c-brand-soft: rgba(102, 126, 234, 0.14);
 
-  --vp-button-brand-bg: linear-gradient(135deg, #667eea, #764ba2);
-  --vp-button-brand-hover-bg: linear-gradient(135deg, #7c8ff0, #8458b3);
-  --vp-button-brand-active-bg: linear-gradient(135deg, #5a72e0, #6a4492);
+  /* Button: solid values as fallback (background-color can't take gradients).
+     Gradient is applied via .VPButton.brand override below. */
+  --vp-button-brand-bg: #667eea;
+  --vp-button-brand-hover-bg: #7c8ff0;
+  --vp-button-brand-active-bg: #5a72e0;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-active-text: #ffffff;
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-active-border: transparent;
 
   --vp-home-hero-name-color: transparent;
   --vp-home-hero-name-background: linear-gradient(135deg, #667eea 10%, #764ba2 90%);
   --vp-home-hero-image-background-image: linear-gradient(135deg, rgba(102, 126, 234, 0.25), rgba(118, 75, 162, 0.25));
   --vp-home-hero-image-filter: blur(44px);
+}
+
+/* Brand button: gradient background (background-color can't take gradients,
+   so we override `background` on the element itself). */
+.VPButton.brand {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-color: transparent;
+}
+.VPButton.brand:hover {
+  background: linear-gradient(135deg, #7c8ff0, #8458b3);
+  border-color: transparent;
+}
+.VPButton.brand:active {
+  background: linear-gradient(135deg, #5a72e0, #6a4492);
+  border-color: transparent;
 }
 
 .dark {

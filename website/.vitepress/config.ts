@@ -64,7 +64,7 @@ export default defineConfig({
           { text: "API", link: "/api/core" },
           { text: "Effects", link: "/effects/liquid-glass" },
           { text: "Adapters", link: "/adapters/overview" },
-          { text: "Demo", link: "/demo/" },
+          { text: "Demo", link: "https://github.6iedog.com/liquid-canvas/demo/" },
           { text: "GitHub", link: "https://github.com/6iedog/liquid-canvas" },
         ],
         sidebar: [
@@ -90,7 +90,7 @@ export default defineConfig({
           { text: "API", link: "/zh/api/core" },
           { text: "效果", link: "/zh/effects/liquid-glass" },
           { text: "适配器", link: "/zh/adapters/overview" },
-          { text: "Demo", link: "/demo/" },
+          { text: "Demo", link: "https://github.6iedog.com/liquid-canvas/demo/" },
           { text: "GitHub", link: "https://github.com/6iedog/liquid-canvas" },
         ],
         sidebar: [

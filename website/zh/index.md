@@ -11,7 +11,7 @@ hero:
       link: /zh/guide/getting-started
     - theme: alt
       text: 在线演示
-      link: /demo/
+      link: https://github.6iedog.com/liquid-canvas/demo/
     - theme: alt
       text: GitHub
       link: https://github.com/6iedog/liquid-canvas
