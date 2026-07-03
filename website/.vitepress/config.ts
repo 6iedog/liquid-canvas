@@ -46,8 +46,14 @@ const zhSidebar = {
 
 export default defineConfig({
   title: "Liquid Canvas",
-  description: "iOS Liquid Glass effects for the web",
+  description: "iOS Liquid Glass effects for the web — framework-agnostic, plugin-based, three-tier fallback",
   base: "/liquid-canvas/",
+  lastUpdated: true,
+  cleanUrls: true,
+  head: [
+    ["link", { rel: "icon", href: "/liquid-canvas/favicon.svg", type: "image/svg+xml" }],
+    ["meta", { name: "theme-color", content: "#667eea" }],
+  ],
   locales: {
     root: {
       label: "English",
@@ -57,6 +63,8 @@ export default defineConfig({
           { text: "Guide", link: "/guide/getting-started" },
           { text: "API", link: "/api/core" },
           { text: "Effects", link: "/effects/liquid-glass" },
+          { text: "Adapters", link: "/adapters/overview" },
+          { text: "Demo", link: "/demo/" },
           { text: "GitHub", link: "https://github.com/6iedog/liquid-canvas" },
         ],
         sidebar: [
@@ -65,7 +73,12 @@ export default defineConfig({
           { text: "Effects", items: sharedSidebar.effects },
           { text: "Adapters", items: sharedSidebar.adapters },
         ],
-        outline: { label: "On this page" },
+        outline: { label: "On this page", level: [2, 3] },
+        docFooter: { prev: "Previous", next: "Next" },
+        lastUpdatedText: "Last updated",
+        returnToTopLabel: "Return to top",
+        sidebarMenuLabel: "Menu",
+        darkModeSwitchLabel: "Appearance",
       },
     },
     zh: {
@@ -76,6 +89,8 @@ export default defineConfig({
           { text: "指南", link: "/zh/guide/getting-started" },
           { text: "API", link: "/zh/api/core" },
           { text: "效果", link: "/zh/effects/liquid-glass" },
+          { text: "适配器", link: "/zh/adapters/overview" },
+          { text: "Demo", link: "/demo/" },
           { text: "GitHub", link: "https://github.com/6iedog/liquid-canvas" },
         ],
         sidebar: [
@@ -84,11 +99,24 @@ export default defineConfig({
           { text: "效果", items: zhSidebar.effects },
           { text: "适配器", items: zhSidebar.adapters },
         ],
-        outline: { label: "本页内容" },
+        outline: { label: "本页内容", level: [2, 3] },
+        docFooter: { prev: "上一页", next: "下一页" },
+        lastUpdatedText: "最后更新",
+        returnToTopLabel: "回到顶部",
+        sidebarMenuLabel: "菜单",
+        darkModeSwitchLabel: "外观",
       },
     },
   },
   themeConfig: {
-    socialLinks: [{ icon: "github", link: "https://github.com/6iedog/liquid-canvas" }],
+    socialLinks: [
+      { icon: "github", link: "https://github.com/6iedog/liquid-canvas" },
+      { icon: "npm", link: "https://www.npmjs.com/package/@liquid-canvas/core" },
+    ],
+    search: { provider: "local" },
+    footer: {
+      message: "Released under the MIT License.",
+      copyright: "Copyright © 2025-present 6iedog",
+    },
   },
 })

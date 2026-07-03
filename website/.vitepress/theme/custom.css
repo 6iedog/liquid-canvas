@@ -1,0 +1,69 @@
+/* Liquid Canvas — custom VitePress theme
+ * Overrides default green with a liquid-glass purple-blue palette,
+ * and adds hero / feature-card enhancements for the home layout.
+ */
+
+:root {
+  --vp-c-brand-1: #667eea;
+  --vp-c-brand-2: #764ba2;
+  --vp-c-brand-3: #818cf8;
+  --vp-c-brand-soft: rgba(102, 126, 234, 0.14);
+
+  --vp-button-brand-bg: linear-gradient(135deg, #667eea, #764ba2);
+  --vp-button-brand-hover-bg: linear-gradient(135deg, #7c8ff0, #8458b3);
+  --vp-button-brand-active-bg: linear-gradient(135deg, #5a72e0, #6a4492);
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(135deg, #667eea 10%, #764ba2 90%);
+  --vp-home-hero-image-background-image: linear-gradient(135deg, rgba(102, 126, 234, 0.25), rgba(118, 75, 162, 0.25));
+  --vp-home-hero-image-filter: blur(44px);
+}
+
+.dark {
+  --vp-c-brand-1: #818cf8;
+  --vp-c-brand-2: #a78bfa;
+  --vp-c-brand-3: #c4b5fd;
+  --vp-c-brand-soft: rgba(129, 140, 248, 0.18);
+
+  --vp-home-hero-image-background-image: linear-gradient(135deg, rgba(129, 140, 248, 0.2), rgba(167, 139, 250, 0.2));
+}
+
+/* Hero image glow ring */
+.VPHero .VPImage {
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(102, 126, 234, 0.25);
+}
+
+/* Feature cards: subtle glass-like border + hover lift */
+.VPFeatures .VPFeature {
+  border-radius: 16px;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.VPFeatures .VPFeature:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.18);
+  border-color: var(--vp-c-brand-1);
+}
+.VPFeatures .VPFeature .icon {
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+}
+
+/* Nav brand gradient text */
+.VPNavBarTitle .title {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Demo iframe on home page (legacy, kept for any inline demo usage) */
+.demo-iframe {
+  width: 100%;
+  height: 560px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  margin: 24px 0 32px;
+  background: #0b0d12;
+}

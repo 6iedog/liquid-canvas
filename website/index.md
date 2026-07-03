@@ -1,105 +1,60 @@
-# Liquid Canvas
+---
+layout: home
 
-> iOS-style Liquid Glass effects for the web — framework-agnostic, plugin-based, with three-tier progressive enhancement.
+hero:
+  name: "Liquid Canvas"
+  text: "iOS Liquid Glass for the Web"
+  tagline: Three-tier progressive enhancement · Native → HTML2Canvas → CSS · Framework-agnostic
+  actions:
+    - theme: brand
+      text: Get Started
+      link: /guide/getting-started
+    - theme: alt
+      text: Live Demo
+      link: /demo/
+    - theme: alt
+      text: GitHub
+      link: https://github.com/6iedog/liquid-canvas
 
-<div class="hero-actions">
-
-```bash
-npm install @liquid-canvas/core
-```
-
-<a href="/liquid-canvas/demo/" class="demo-button" target="_blank">▶ Live Demo</a>
-
-</div>
-
-<iframe src="/liquid-canvas/demo/" class="demo-iframe" loading="lazy" title="Liquid Canvas Live Demo"></iframe>
-
-## Features
-
-- **Three-tier fallback** — Native (drawElementImage) → HTML2Canvas (WebGL) → CSS (backdrop-filter + SVG)
-- **Plugin system** — Register custom GLSL shader effects
-- **Framework bindings** — React (`@liquid-canvas/react`) and Vue (`@liquid-canvas/vue`)
-- **Built-in effects** — `liquid-glass` (full iOS style) and `frosted-glass` (simpler blur + tint)
-
-## Quick Start
-
-```typescript
-import { glass } from "@liquid-canvas/core"
-
-// Minimal usage
-glass("#my-element", { effect: "liquid-glass" })
-
-// Full configuration
-const inst = await glass({
-  target: document.querySelector("#panel"),
-  effect: "liquid-glass",
-  options: {
-    refraction: 0.6,
-    blur: 0.3,
-    chromaticAberration: 0.04,
-    edgeHighlight: 0.08,
-    specular: 0.15,
-    fresnel: 1.0,
-    cornerRadius: 24,
-  },
-})
-
-// Clean up
-inst.dispose()
-```
-
-## Browser Support
-
-| Browser          | Native (HTML-in-Canvas) | html2canvas | CSS |
-|------------------|-------------------------|-------------|-----|
-| Chrome 138+ w/ flag | ✅                   | ✅          | ✅  |
-| Chrome (stable)  | ❌ → auto html2canvas   | ✅          | ✅  |
-| Edge             | ❌ → auto html2canvas   | ✅          | ✅  |
-| Safari           | ❌ → auto html2canvas   | ✅          | ✅  |
-| Firefox          | ❌ → auto html2canvas   | ✅          | ✅  |
-
-> Forcing `adapter: "native"` on an unsupported browser automatically falls back to `html2canvas`. See [Adapter Overview](./adapters/overview.md).
-
-## Packages
-
-| Package | Size | Description |
-|---------|------|-------------|
-| `@liquid-canvas/core` | 39 kB | Framework-agnostic core engine |
-| `@liquid-canvas/react` | 4.6 kB | React `<Glass>` component |
-| `@liquid-canvas/vue` | 2.7 kB | Vue `<Glass>` component |
-
-<style>
-.hero-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin: 24px 0;
-}
-.hero-actions .demo-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 24px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: #fff;
-  border-radius: 100px;
-  font-weight: 600;
-  font-size: 14px;
-  text-decoration: none;
-  transition: transform 0.15s, box-shadow 0.15s;
-  white-space: nowrap;
-}
-.hero-actions .demo-button:hover {
-  transform: scale(1.04);
-  box-shadow: 0 4px 20px rgba(102,126,234,0.4);
-}
-.demo-iframe {
-  width: 100%;
-  height: 560px;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 16px;
-  margin: 24px 0 32px;
-  background: #0b0d12;
-}
-</style>
+features:
+  - icon: 🎨
+    title: Three-tier Fallback
+    details: Native (HTML-in-Canvas) → HTML2Canvas (WebGL) → CSS (backdrop-filter + SVG). Auto-detects browser capability and degrades gracefully.
+    link: /adapters/overview
+    linkText: Explore Adapters →
+  - icon: ✨
+    title: Liquid Glass Effect
+    details: SDF-based refraction, chromatic aberration, fresnel rim glow, specular highlights. Faithful iOS-style optical simulation, not just blur.
+    link: /effects/liquid-glass
+    linkText: View Effect →
+  - icon: 🌫️
+    title: Frosted Glass Effect
+    details: Clean blur + tint + saturation. Simpler and cheaper than liquid-glass when you don't need optical distortion.
+    link: /effects/frosted-glass
+    linkText: View Effect →
+  - icon: 🧩
+    title: Plugin System
+    details: Register custom GLSL shader effects. Each effect ships its own fragment shader, controls, and SVG fallback.
+    link: /api/core
+    linkText: Core API →
+  - icon: ⚛️
+    title: React Binding
+    details: Drop-in <Glass> component with props for all options. SSR-safe, ref-forwarding, automatic cleanup.
+    link: /api/react
+    linkText: React Docs →
+  - icon: 💚
+    title: Vue Binding
+    details: Drop-in <Glass> component with v-model:options support. Composition API, auto-cleanup on unmount.
+    link: /api/vue
+    linkText: Vue Docs →
+  - icon: ⚡
+    title: Shared Snapshot Cache
+    details: Multiple glass cards over the same background share one html2canvas snapshot. 6-card matrix inits in ~1s instead of ~9s.
+    link: /adapters/html2canvas
+    linkText: How it works →
+  - icon: 🛡️
+    title: Graceful Degradation
+    details: Forcing adapter:"native" on unsupported browsers auto-falls-back to html2canvas. Cards never stay transparent.
+    link: /adapters/native
+    linkText: Native Adapter →
+---
