@@ -43,7 +43,7 @@
     "format": "biome format --write src/"
   },
   "peerDependencies": {
-    "@liquid-canvas/core": "^0.2.0",
+    "@liquid-canvas/core": "^1.0.0",
     "vue": "^3.4.0"
   },
   "devDependencies": {
