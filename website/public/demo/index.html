@@ -14,10 +14,14 @@
     color: #fff;
     min-height: 100vh;
     background: #0b0d12;
+    position: relative; /* containing block for .page-bg (absolute, full-document) */
   }
 
+  /* Absolute (not fixed) so the element covers the FULL document height.
+     With `position: fixed; inset: 0;` the bg was only viewport-sized, so
+     cards below the fold fell outside the html2canvas snapshot → black. */
   .page-bg {
-    position: fixed; inset: 0; z-index: 0;
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;
     background-size: cover; background-position: center;
     background-image: url(https://picsum.photos/seed/mtn/1920/1080);
   }
