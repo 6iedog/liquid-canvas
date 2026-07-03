@@ -416,7 +416,31 @@ export class NativeAdapter implements GlassAdapter {
      * the source rectangle (sx, sy, sw, sh) and map it to the full canvas
      * (0, 0, w, h). */
     const { sx, sy, sw, sh } = this.getBgSourceRect()
-    ;(ctx2d as any).drawElementImage(this.bgChild, sx, sy, sw, sh, 0, 0, w, h)
+    try {
+      ;(ctx2d as any).drawElementImage(this.bgChild, sx, sy, sw, sh, 0, 0, w, h)
+    } catch (err) {
+      /* Spec: "Throws if called before any snapshot has been recorded."
+       * This can happen on the very first paint before layoutsubtree has
+       * captured bgChild. Skip this frame; requestRepaint will retry. */
+      if (!this._loggedFirstPaint) {
+        this.log?.log(
+          `drawElementImage threw (likely no snapshot yet): ${err instanceof Error ? err.message : String(err)}`,
+        )
+      }
+      return
+    }
+
+    /* Diagnostic: verify sourceCanvas has non-empty content after draw */
+    if (!this._loggedFirstPaint) {
+      try {
+        const px = ctx2d.getImageData(w >> 1, h >> 1, 1, 1).data
+        this.log.log(
+          `sourceCanvas center pixel after drawElementImage: [${px[0]},${px[1]},${px[2]},${px[3]}]`,
+        )
+      } catch {
+        this.log?.log("could not read sourceCanvas pixel (tainted?)")
+      }
+    }
 
     /* Upload the 2D bitmap as a WebGL texture */
     const gl = this.gl
